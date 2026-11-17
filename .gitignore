@@ -1,0 +1,15 @@
+# Ignore raw dataset images & large trained checkpoints
+data/images/
+*.pth
+*.pt
+*.zip
+
+# Keep the Grad-CAM visual report figure so it displays on GitHub!
+!assets/dfu_gradcam_report.png
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.env

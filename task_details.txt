@@ -1,0 +1,74 @@
+================================================================================
+   PRACTICAL 3: TASK SPECIFICATION & TECHNICAL DOCUMENTATION
+   Project: Early-Stage Diabetic Foot Ulcer (DFU) Detection with Grad-CAM
+================================================================================
+
+1. PROBLEM STATEMENT & CLINICAL OBJECTIVE
+--------------------------------------------------------------------------------
+• Clinical Challenge: 
+  Diabetic Foot Ulcers (DFUs) are a leading cause of lower-limb amputations 
+  worldwide. Early visual indicators—such as localized erythema (redness), 
+  superficial tissue breakdown, and ischemic margins—are often subtle and 
+  missed during routine outpatient screening.
+• Engineering Task: 
+  Develop an automated, binary medical image classification and visual 
+  explainability pipeline capable of distinguishing Abnormal (Ulcer) plantar 
+  tissue from Normal (Healthy) skin while providing spatial attention maps 
+  for clinician verification.
+
+
+2. DATASET SPECIFICATIONS
+--------------------------------------------------------------------------------
+• Source: Public Diabetic Foot Ulcer (DFU) Patch Dataset (Kaggle / Benchmark)
+• Total Samples: 1,055 standardized RGB plantar skin patches
+• Class Distribution:
+  - Class 0: Abnormal (Diabetic Foot Ulcer / Pre-ulcerative tissue breakdown)
+  - Class 1: Normal (Intact healthy plantar skin)
+• Data Splitting Strategy: 
+  5-Fold Stratified Split (80% Training / 20% Validation) preserving exact class 
+  ratios across splits, with native support for StratifiedGroupKFold when 
+  patient-level identifiers are present.
+
+
+3. METHODOLOGY & PIPELINE ARCHITECTURE (4 SUB-TASKS)
+--------------------------------------------------------------------------------
+• Task 3.1 — Photometric-Safe Preprocessing (src/dataset.py):
+  - Resizes raw clinical images to 224x224 RGB tensors normalized to ImageNet 
+    statistics.
+  - Applies geometric augmentations (horizontal/vertical flips, ±20° rotation) 
+    and controlled brightness/contrast jitter while restricting hue distortion 
+    (<= 0.03) to preserve diagnostic erythema and tissue color cues.
+
+• Task 3.2 — Backbone Architecture & Focal Loss (src/model.py):
+  - Backbone: EfficientNet-V2-S pre-trained on ImageNet-1K.
+  - Classification Head: Dropout (0.3) -> Linear (256) -> BatchNorm1d -> 
+    SiLU Activation -> Dropout (0.3) -> 2-Class Output Logits.
+  - Loss Function: Class-weighted Focal Loss (gamma = 2.0) to down-weight 
+    easily classified intact skin and concentrate gradient updates on 
+    ambiguous early-stage ulcer margins.
+
+• Task 3.3 — Transfer Learning & Optimization (train.py):
+  - Optimizer: AdamW (lr = 3e-4, weight_decay = 1e-2) with Cosine Annealing LR 
+    scheduler.
+  - Compute Optimization: Selective layer freezing (freezing early stem/blocks 
+    while keeping the final convolutional feature block and classifier trainable) 
+    enabling rapid convergence on CPU hardware.
+  - Checkpointing: Automatically saves best model weights based on validation 
+    Macro F1-Score (assets/best_dfu_model.pth).
+
+• Task 3.4 — Spatial Explainability & Clinical Audit (src/explainability.py):
+  - Registers forward and backward PyTorch hooks on the final convolutional 
+    block (model.backbone.features[-1]) to compute Gradient-weighted Class 
+    Activation Maps (Grad-CAM).
+  - Generates a 3-panel clinical report figure (Original Scan | Activation 
+    Heatmap | Blended Overlay) saved to assets/dfu_gradcam_report.png.
+
+
+4. KEY DELIVERABLES & OUTPUT ARTIFACTS
+--------------------------------------------------------------------------------
+• Trained Model Checkpoint : assets/best_dfu_model.pth
+• Visual XAI Report        : assets/dfu_gradcam_report.png
+• Validation Benchmarks    : Macro F1 > 0.97 | ROC-AUC > 0.99
+• Automated Unit Test      : tests/test_dfu_pipeline.py (verifies tensor shapes, 
+                             Focal Loss backward pass, and Grad-CAM hooks)
+================================================================================
